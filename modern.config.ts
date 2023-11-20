@@ -3,6 +3,8 @@ import { bffPlugin } from '@modern-js/plugin-bff';
 import { expressPlugin } from '@modern-js/plugin-express';
 import cookie from 'cookie';
 
+const modifiedCK = 'x-modified-cookie';
+
 // https://modernjs.dev/en/configure/app/usage
 export default defineConfig({
   runtime: {
@@ -29,7 +31,13 @@ export default defineConfig({
                 }
               }
             }
-            incoming.headers['x-modified-cookie'] = resCookie;
+            incoming.headers[modifiedCK] = resCookie;
+          }
+        },
+        onProxyReq(proxyReq, incoming) {
+          const ck = incoming.headers[modifiedCK];
+          if (ck) {
+            proxyReq.setHeader('Cookie', ck);
           }
         },
       },

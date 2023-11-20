@@ -29,10 +29,12 @@ export class AdapterCoreContext {
     passwd?: string;
     encryptedPasswd?: string;
     identity?: '本科生';
+    casSession?: string;
   };
 
   manual: {
     getCaptchaText?: (base64: string) => Promise<string>;
+    getAccount?: () => { account: string; passwd: string };
   };
 
   constructor() {

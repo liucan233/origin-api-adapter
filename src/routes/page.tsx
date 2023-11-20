@@ -6,41 +6,51 @@ import { AdapterCore, supportedTask } from '@/adapterCore';
 const TaskCtrl = () => {
   const [showRetry, setShowRetry] = useState(false);
   const adapterCoreRef = useRef<AdapterCore | null>(null);
+  const [captcha, setCaptcha] = useState('');
+  const [captchaImg, setCaptchaImg] = useState('');
+
+  const resolveGetCaptchaTextRef = useRef<null | ((v: string) => any)>(null);
+
   const handleStart = () => {
     // 终止上一个执行
     adapterCoreRef.current?.abortAllTask();
 
     // 创建新任务
-    const adapterCore = new AdapterCore();
+    const adapterCore = new AdapterCore({
+      manual: {
+        getAccount() {
+          return {
+            account: ' ',
+            passwd: ' ',
+          };
+        },
+        getCaptchaText(base64) {
+          setCaptchaImg(base64);
+          return new Promise<string>(resolve => {
+            resolveGetCaptchaTextRef.current = resolve;
+          });
+        },
+      },
+    });
     adapterCoreRef.current = adapterCore;
 
-    // 创建任务
-    const task1 = adapterCore.addTask(supportedTask.getLabCourse());
-
-    task1.onSuccess = () => console.log('task1成功');
-    task1.onError = () => {
-      setShowRetry(true);
-      console.log('task1失败');
-    };
-
-    task1.onProgress = (c, a) => console.log(`task2进度: ${c}/${a}`);
-
-    const task2 = adapterCore.addTask(supportedTask.getLabCourse());
+    const task2 = adapterCore.addTask(supportedTask.getLoginCasTask());
     task2.onSuccess = () => console.log('task2成功');
-    task2.onError = () => {
+    task2.onError = err => {
       setShowRetry(true);
-      console.log('task2失败');
+      console.log(err);
     };
 
     // 监听任务执行情况
-    task2.onProgress = (c, a) => console.log(`task2进度: ${c}/${a}`);
+    task2.onProgress = (c, a) =>
+      console.log(task2.stepArr[c].name, `${c}/${a}`);
 
     // 开始所有任务
     adapterCore.execAllTask();
   };
   return (
     <>
-      <button onClick={handleStart}>开始</button>
+      {!showRetry && <button onClick={handleStart}>开始</button>}
       {showRetry && (
         <button
           onClick={() => {
@@ -54,6 +64,24 @@ const TaskCtrl = () => {
       <button onClick={() => adapterCoreRef.current?.abortAllTask()}>
         取消
       </button>
+      {captchaImg && <img src={captchaImg} />}
+      {captchaImg && (
+        <input
+          placeholder="验证码"
+          value={captcha}
+          onChange={e => setCaptcha(e.target.value)}
+        />
+      )}
+      {captchaImg && (
+        <button
+          onClick={() => {
+            resolveGetCaptchaTextRef.current?.(captcha);
+            setCaptchaImg('');
+          }}
+        >
+          提交验证码
+        </button>
+      )}
     </>
   );
 };
