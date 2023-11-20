@@ -9,7 +9,9 @@ export default async () => {
     ctx.res.setHeader(k, v);
   });
   const cookie = res.headers.get('set-cookie');
-  console.log(ck.parse(cookie));
+  if (cookie) {
+    console.log(ck.parse(cookie));
+  }
   const arrayBuffer = await res.arrayBuffer();
   ctx.res.write(new Uint8Array(arrayBuffer));
   ctx.res.end();

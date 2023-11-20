@@ -2,6 +2,12 @@ import { AdapterCoreContext } from './classes';
 import { TTask } from './types';
 import { execAllTask } from './executor';
 import { LabCourseTask } from './course/classes';
+import { LoginCasTask } from './loginCas';
+
+interface IAdapterCoreConfig {
+  /** 执行任务需要输入验证码等 */
+  manual: AdapterCoreContext['manual'];
+}
 
 /** sdk对外暴露的入口，先调用addTask，再调用execAllTask开始执行 */
 export class AdapterCore {
@@ -9,8 +15,11 @@ export class AdapterCore {
 
   context: AdapterCoreContext;
 
-  constructor() {
+  constructor(c?: IAdapterCoreConfig) {
     this.context = new AdapterCoreContext();
+    if (c) {
+      this.context.manual = c.manual;
+    }
   }
 
   /** 开始执行以及添加的任务 */
@@ -43,5 +52,8 @@ export class AdapterCore {
 export const supportedTask = {
   getLabCourse() {
     return new LabCourseTask();
+  },
+  getLoginCasTask() {
+    return new LoginCasTask();
   },
 };
