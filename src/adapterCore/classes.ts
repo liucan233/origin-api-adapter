@@ -6,24 +6,9 @@ export abstract class TaskStep {
   /** 步骤描述 */
   desc: string;
 
-  /** 步骤promise，成功/失败 */
-  promise: Promise<void>;
-
-  /** sdk内部属性，兑现这个步骤 */
-  // @ts-expect-error
-  resolve: () => void;
-
-  /** sdk内部属性，失败这个步骤 */
-  // @ts-expect-error
-  reject: (err: unknown) => void;
-
   constructor(name: string, desc: string) {
     this.name = name;
     this.desc = desc;
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
   }
 
   abstract startWork(ctx: AdapterCoreContext): Promise<void>;
@@ -31,6 +16,8 @@ export abstract class TaskStep {
 
 /** 适配器核心上下文 */
 export class AdapterCoreContext {
+  tmpTaskReslut: unknown;
+
   taskInfo: {
     /** 终止任务执行 */
     abort?: boolean;
@@ -63,39 +50,41 @@ export class IRunableTask<Result> {
 
   stepArr: TaskStep[] = [];
 
-  promise: Promise<Result>;
+  lastStepIndex: number = 0;
 
-  // @ts-expect-error
-  resolve: (v: Result) => void;
+  onSuccess?: (v: Result) => void;
 
-  // @ts-expect-error
-  reject: (err: unknown) => void;
+  onError?: (err: unknown, stepIndex: number) => void;
 
-  constructor() {
-    this.promise = new Promise<Result>((resolve, reject) => {
-      this.resolve = resolve;
-      this.reject = reject;
-    });
-  }
+  onProgress?: (cur: number, total: number) => void;
 
   async startStep(ctx: AdapterCoreContext): Promise<void> {
-    for (const s of this.stepArr) {
+    if (this.lastStepIndex >= this.stepArr.length) {
+      return;
+    }
+    for (let i = this.lastStepIndex; i < this.stepArr.length; i++) {
+      const s = this.stepArr[i];
+      this.lastStepIndex = i;
       if (ctx.taskInfo.abort) {
         throw new Error('外部中断任务');
       }
       try {
         await s.startWork(ctx);
       } catch (error) {
-        s.reject(error);
-        this.reject(error);
-        return;
+        this.onError?.(error, i);
+        throw error;
       }
-      s.resolve();
+      this.onProgress?.(i, this.stepArr.length - 1);
     }
+    this.lastStepIndex++;
+    this.result = ctx.tmpTaskReslut as Result;
     if (this.result === undefined) {
-      this.reject(new Error('步骤执行完成，但是result为空'));
+      this.onError?.(
+        new Error('步骤执行完成，但是result为空'),
+        this.stepArr.length,
+      );
     } else {
-      this.resolve(this.result);
+      this.onSuccess?.(this.result);
     }
   }
 }
