@@ -1,5 +1,63 @@
 import { Helmet } from '@modern-js/runtime/head';
 import './index.css';
+import { useRef } from 'react';
+import { AdapterCore, supportedTask } from '@/adapterCore';
+
+const TaskCtrl = () => {
+  const adapterCoreRef = useRef<AdapterCore | null>(null);
+  const handleStart = () => {
+    // 终止上一个执行
+    adapterCoreRef.current?.abortAllTask();
+
+    // 创建新任务
+    const adapterCore = new AdapterCore();
+    adapterCoreRef.current = adapterCore;
+    const task1 = adapterCore.addTask(supportedTask.getLabCourse());
+    const task2 = adapterCore.addTask(supportedTask.getLabCourse());
+
+    // 监听任务执行成功
+    task1.promise.then(arr => {
+      console.log('实验课获取成功', arr);
+      console.log('第二个任务即将开始执行');
+    });
+
+    // 获取任务里的所有步骤
+    console.log(
+      '实验课获取步骤:',
+      task1.stepArr.map(({ name, desc }) => ({ name, desc })),
+    );
+
+    // 监听任务执行情况
+    task1.stepArr.forEach(({ name, promise }) => {
+      promise.then(() => {
+        console.log(name, '执行成功');
+      });
+    });
+
+    // 监听任务执行成功
+    task2.promise.then(arr => {
+      console.log('第二个任务执行成功', arr);
+    });
+
+    // 监听任务执行情况
+    task2.stepArr.forEach(({ name, promise }) => {
+      promise.then(() => {
+        console.log(name, '执行成功');
+      });
+    });
+
+    // 开始所有任务
+    adapterCore.execAllTask();
+  };
+  return (
+    <>
+      <button onClick={handleStart}>开始</button>
+      <button onClick={() => adapterCoreRef.current?.abortAllTask()}>
+        取消
+      </button>
+    </>
+  );
+};
 
 const Index = () => (
   <div className="container-box">
@@ -11,80 +69,7 @@ const Index = () => (
       />
     </Helmet>
     <main>
-      <div className="title">
-        Welcome to
-        <img
-          className="logo"
-          src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/modern-js-logo.svg"
-          alt="Modern.js Logo"
-        />
-        <p className="name">Modern.js</p>
-      </div>
-      <p className="description">
-        Get started by editing <code className="code">src/routes/page.tsx</code>
-      </p>
-      <div className="grid">
-        <a
-          href="https://modernjs.dev/guides/get-started/introduction.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="card"
-        >
-          <h2>
-            Guide
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-            />
-          </h2>
-          <p>Follow the guides to use all features of Modern.js.</p>
-        </a>
-        <a
-          href="https://modernjs.dev/tutorials/foundations/introduction.html"
-          target="_blank"
-          className="card"
-          rel="noreferrer"
-        >
-          <h2>
-            Tutorials
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-            />
-          </h2>
-          <p>Learn to use Modern.js to create your first application.</p>
-        </a>
-        <a
-          href="https://modernjs.dev/configure/app/usage.html"
-          target="_blank"
-          className="card"
-          rel="noreferrer"
-        >
-          <h2>
-            Config
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-            />
-          </h2>
-          <p>Find all configuration options provided by Modern.js.</p>
-        </a>
-        <a
-          href="https://github.com/web-infra-dev/modern.js"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="card"
-        >
-          <h2>
-            Github
-            <img
-              className="arrow-right"
-              src="https://lf3-static.bytednsdoc.com/obj/eden-cn/zq-uylkvT/ljhwZthlaukjlkulzlp/arrow-right.svg"
-            />
-          </h2>
-          <p>View the source code of Github, feel free to contribute.</p>
-        </a>
-      </div>
+      <TaskCtrl />
     </main>
   </div>
 );
