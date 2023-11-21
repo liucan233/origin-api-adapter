@@ -20,8 +20,8 @@ const TaskCtrl = () => {
       manual: {
         getAccount() {
           return {
-            account: ' ',
-            passwd: ' ',
+            account: '1',
+            passwd: '1',
           };
         },
         getCaptchaText(base64) {
@@ -34,7 +34,18 @@ const TaskCtrl = () => {
     });
     adapterCoreRef.current = adapterCore;
 
-    const task2 = adapterCore.addTask(supportedTask.getLoginCasTask());
+    const task1 = adapterCore.addTask(supportedTask.getLoginCasTask());
+    task1.onSuccess = () => console.log('task1成功');
+    task1.onError = err => {
+      setShowRetry(true);
+      console.log(err);
+    };
+
+    // 监听任务执行情况
+    task1.onProgressOrSkip = (c, a) =>
+      console.log(task1.stepArr[c].name, `${c}/${a}`);
+
+    const task2 = adapterCore.addTask(supportedTask.getLabCourseTask());
     task2.onSuccess = () => console.log('task2成功');
     task2.onError = err => {
       setShowRetry(true);
@@ -42,7 +53,7 @@ const TaskCtrl = () => {
     };
 
     // 监听任务执行情况
-    task2.onProgress = (c, a) =>
+    task2.onProgressOrSkip = (c, a) =>
       console.log(task2.stepArr[c].name, `${c}/${a}`);
 
     // 开始所有任务

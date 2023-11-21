@@ -50,7 +50,7 @@ export class AdapterCore {
 
 /** 支持的任务map */
 export const supportedTask = {
-  getLabCourse() {
+  getLabCourseTask() {
     return new LabCourseTask();
   },
   getLoginCasTask() {

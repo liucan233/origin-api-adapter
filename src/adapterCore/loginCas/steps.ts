@@ -4,6 +4,13 @@ import { rsaUtils } from './security';
 
 const modifiedCK = 'x-modified-cookie';
 
+interface ITaskData {
+  casSession?: string;
+  encryptedPasswd?: string;
+  passwd?: string;
+  account?: string;
+}
+
 export class GetCaptchaStep extends TaskStep {
   constructor() {
     super(
@@ -12,15 +19,18 @@ export class GetCaptchaStep extends TaskStep {
     );
   }
 
-  async startWork(ctx: AdapterCoreContext): Promise<void> {
+  async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
     let res = await fetch(
       '/swust/cas/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F',
+      {
+        redirect: 'error',
+      },
     );
     const siteSession = res.headers.get(modifiedCK);
     if (!siteSession) {
       throw new Error('获取session失败');
     }
-    ctx.userInfo.casSession = siteSession;
+    data.casSession = siteSession;
     res = await fetch('/swust/cas/authserver/captcha', {
       headers: {
         [modifiedCK]: siteSession,
@@ -47,7 +57,7 @@ export class LoginCasStep extends TaskStep {
     super('尝试登陆', '尝试http://cas.swust.edu.cn/authserver/login');
   }
 
-  async startWork(ctx: AdapterCoreContext): Promise<void> {
+  async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
     const imgBase64 = ctx.tmpTaskReslut as string;
     if (!ctx.manual.getCaptchaText) {
       throw new Error('未传入manual.getCaptchaText');
@@ -58,35 +68,33 @@ export class LoginCasStep extends TaskStep {
     params.set('execution', 'e1s1');
     params.set('_eventId', 'submit');
     params.set('geolocation', '');
-    params.set('username', ctx.userInfo.account as string);
+    params.set('username', data.account as string);
     params.set('lm', 'usernameLogin');
-    params.set('password', ctx.userInfo.encryptedPasswd as string);
+    params.set('password', data.encryptedPasswd as string);
     params.set('captcha', captcha);
-    const res = await fetch(
-      '/swust/cas/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F',
-      {
-        method: 'post',
-        headers: {
-          'Upgrade-Insecure-Requests': '1',
-          [modifiedCK]: ctx.userInfo.casSession as string,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
+    const res = await fetch('/api/cas/login', {
+      method: 'post',
+      headers: {
+        'Upgrade-Insecure-Requests': '1',
+        [modifiedCK]: data.casSession as string,
+        'Content-Type': 'plain/text',
       },
-    );
-    const location = res.headers.get('location');
-    const tgcCookie = res.headers.get(modifiedCK);
-    res.headers.forEach((v, k) => {
-      console.log(k, v);
+      body: params.toString(),
     });
-    if (!location || !tgcCookie || !tgcCookie.startsWith('TGC')) {
-      throw new Error('使用计算的身份信息登陆失败');
+    const resText = await res.text();
+    if (res.status === 200) {
+      ctx.authInfo.soaTicket = resText;
+      ctx.tmpTaskReslut = {
+        soaTicketUrl: resText,
+        casLoginedCookie: res.headers.get(modifiedCK) || 'TGC=error',
+      };
+      return;
     }
-    if (!location.includes('ticket')) {
-      throw new Error('未获取到ticket');
+    if (res.status === 401) {
+      throw new Error('账号、密码或验证码不正确');
     }
-    ctx.userInfo.casSession = tgcCookie;
-    ctx.tmpTaskReslut = location;
+
+    throw new Error(resText);
   }
 }
 
@@ -95,7 +103,7 @@ export class GetUserAccountStep extends TaskStep {
     super('获取账号密码', '获取需要登陆的账号，原始密码金本地使用');
   }
 
-  async startWork(ctx: AdapterCoreContext): Promise<void> {
+  async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
     if (!ctx.manual.getAccount) {
       throw new Error('未传入manual.getAccount');
     }
@@ -106,8 +114,8 @@ export class GetUserAccountStep extends TaskStep {
     if (!userAuth.passwd) {
       throw new Error('密码为空');
     }
-    ctx.userInfo.passwd = userAuth.passwd;
-    ctx.userInfo.account = userAuth.account;
+    data.passwd = userAuth.passwd;
+    data.account = userAuth.account;
   }
 }
 
@@ -116,10 +124,10 @@ export class GetKeyPairStep extends TaskStep {
     super('获取RSA公钥', '/authserver/getKey');
   }
 
-  async startWork(ctx: AdapterCoreContext): Promise<void> {
+  async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
     const res = await fetch('/swust/cas/authserver/getKey', {
       headers: {
-        [modifiedCK]: ctx.userInfo.casSession as string,
+        [modifiedCK]: data.casSession as string,
       },
     });
     const siteSession = res.headers.get(modifiedCK);
@@ -132,8 +140,8 @@ export class GetKeyPairStep extends TaskStep {
       '',
       rsaParam.modulus,
     );
-    const passwd = ctx.userInfo.passwd as string;
-    ctx.userInfo.encryptedPasswd = rsaUtils.encryptedString(
+    const passwd = data.passwd as string;
+    data.encryptedPasswd = rsaUtils.encryptedString(
       rsaPublickKey,
       Array.from(passwd).reverse().join(''),
     );

@@ -17,9 +17,12 @@ export default defineConfig({
         pathRewrite: {
           '/swust/cas': '',
         },
-        target: 'http://cas.swust.edu.cn',
+        proxyTimeout: 2000,
+        timeout: 3000,
+        target: 'https://cas.swust.edu.cn',
         onProxyRes(incoming) {
           const setCookie = incoming.headers['set-cookie'];
+          incoming.headers['cache-control'] = 'no-store';
           if (setCookie?.length) {
             incoming.headers['set-cookie'] = undefined;
             let resCookie = '';
@@ -27,7 +30,38 @@ export default defineConfig({
               const parsedCookie = cookie.parse(c);
               for (const [k, v] of Object.entries(parsedCookie)) {
                 if (k !== 'path' && k !== 'Path') {
-                  resCookie += `${k}=${v}`;
+                  resCookie += `${k}=${v};`;
+                }
+              }
+            }
+            incoming.headers[modifiedCK] = resCookie;
+          }
+        },
+        onProxyReq(proxyReq, incoming) {
+          const ck = incoming.headers[modifiedCK];
+          if (ck) {
+            proxyReq.setHeader('Cookie', ck);
+          }
+        },
+      },
+      '/swust/soa': {
+        pathRewrite: {
+          '/swust/soa': '',
+        },
+        proxyTimeout: 2000,
+        timeout: 3000,
+        target: 'http://soa.swust.edu.cn',
+        onProxyRes(incoming) {
+          const setCookie = incoming.headers['set-cookie'];
+          incoming.headers['cache-control'] = 'no-store';
+          if (setCookie?.length) {
+            incoming.headers['set-cookie'] = undefined;
+            let resCookie = '';
+            for (const c of setCookie) {
+              const parsedCookie = cookie.parse(c);
+              for (const [k, v] of Object.entries(parsedCookie)) {
+                if (k !== 'path' && k !== 'Path') {
+                  resCookie += `${k}=${v};`;
                 }
               }
             }

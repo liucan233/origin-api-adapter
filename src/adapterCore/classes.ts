@@ -11,12 +11,15 @@ export abstract class TaskStep {
     this.desc = desc;
   }
 
-  abstract startWork(ctx: AdapterCoreContext): Promise<void>;
+  abstract startWork(
+    ctx: AdapterCoreContext,
+    taskData: Record<string, any>,
+  ): Promise<void>;
 }
 
 /** 适配器核心上下文 */
 export class AdapterCoreContext {
-  tmpTaskReslut: unknown;
+  tmpTaskReslut: any;
 
   taskInfo: {
     /** 终止任务执行 */
@@ -24,12 +27,9 @@ export class AdapterCoreContext {
     running?: boolean;
   };
 
-  userInfo: {
-    account?: string;
-    passwd?: string;
-    encryptedPasswd?: string;
-    identity?: '本科生';
-    casSession?: string;
+  authInfo: {
+    casTGC?: string;
+    soaTicket?: string;
   };
 
   manual: {
@@ -39,7 +39,7 @@ export class AdapterCoreContext {
 
   constructor() {
     this.taskInfo = {};
-    this.userInfo = {};
+    this.authInfo = {};
     this.manual = {};
   }
 }
@@ -48,37 +48,44 @@ export class AdapterCoreContext {
 export class IRunableTask<Result> {
   result: Result | undefined;
 
+  taskData: Record<string, any> = {};
+
   taskOrder: number = Infinity;
 
   stepArr: TaskStep[] = [];
 
-  lastStepIndex: number = 0;
+  nextStepIndex: number = 0;
 
   onSuccess?: (v: Result) => void;
 
   onError?: (err: unknown, stepIndex: number) => void;
 
-  onProgress?: (cur: number, total: number) => void;
+  onProgressOrSkip?: (cur: number, total: number, skipped?: boolean) => void;
 
   async startStep(ctx: AdapterCoreContext): Promise<void> {
-    if (this.lastStepIndex >= this.stepArr.length) {
-      return;
-    }
-    for (let i = this.lastStepIndex; i < this.stepArr.length; i++) {
+    for (let i = 0; i < this.stepArr.length; i++) {
+      if (i < this.nextStepIndex) {
+        this.onProgressOrSkip?.(i, this.stepArr.length, true);
+        continue;
+      }
       const s = this.stepArr[i];
-      this.lastStepIndex = i;
       if (ctx.taskInfo.abort) {
         throw new Error('外部中断任务');
       }
       try {
-        await s.startWork(ctx);
+        await s.startWork(ctx, this.taskData);
       } catch (error) {
+        if (typeof this.taskData.nextStepIndex === 'number') {
+          this.nextStepIndex = this.taskData.nextStepIndex;
+        } else {
+          this.nextStepIndex = 0;
+        }
         this.onError?.(error, i);
         throw error;
       }
-      this.onProgress?.(i, this.stepArr.length - 1);
+      this.onProgressOrSkip?.(i, this.stepArr.length - 1, false);
     }
-    this.lastStepIndex++;
+    this.nextStepIndex = this.stepArr.length;
     this.result = ctx.tmpTaskReslut as Result;
     if (this.result === undefined) {
       this.onError?.(

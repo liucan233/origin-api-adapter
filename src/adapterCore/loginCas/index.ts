@@ -6,12 +6,19 @@ import {
   LoginCasStep,
 } from './steps';
 
-export class LoginCasTask extends IRunableTask<null> {
+interface ITaskResult {
+  casLoginedCookie: string;
+  soaTicketUrl: string;
+}
+
+export class LoginCasTask extends IRunableTask<ITaskResult> {
   constructor() {
     super();
-    this.stepArr.push(new GetCaptchaStep());
-    this.stepArr.push(new GetUserAccountStep());
-    this.stepArr.push(new GetKeyPairStep());
-    this.stepArr.push(new LoginCasStep());
+    this.stepArr.push(
+      new GetCaptchaStep(),
+      new GetUserAccountStep(),
+      new GetKeyPairStep(),
+      new LoginCasStep(),
+    );
   }
 }
