@@ -1,3 +1,5 @@
+import { TgetAccount } from './types';
+
 /** 任务里的步骤，一个任务保包含多个步骤 */
 export abstract class TaskStep {
   /** 步骤名称 */
@@ -34,7 +36,7 @@ export class AdapterCoreContext {
 
   manual: {
     getCaptchaText?: (base64: string) => Promise<string>;
-    getAccount?: () => { account: string; passwd: string };
+    getAccount?: TgetAccount;
   };
 
   constructor() {
@@ -62,10 +64,18 @@ export class IRunableTask<Result> {
 
   onProgressOrSkip?: (cur: number, total: number, skipped?: boolean) => void;
 
+  setNextStepIndex() {
+    if (typeof this.taskData.nextStepIndex === 'number') {
+      this.nextStepIndex = this.taskData.nextStepIndex;
+    } else {
+      this.nextStepIndex = 0;
+    }
+  }
+
   async startStep(ctx: AdapterCoreContext): Promise<void> {
     for (let i = 0; i < this.stepArr.length; i++) {
       if (i < this.nextStepIndex) {
-        this.onProgressOrSkip?.(i, this.stepArr.length, true);
+        this.onProgressOrSkip?.(i, this.stepArr.length - 1, true);
         continue;
       }
       const s = this.stepArr[i];
@@ -75,19 +85,17 @@ export class IRunableTask<Result> {
       try {
         await s.startWork(ctx, this.taskData);
       } catch (error) {
-        if (typeof this.taskData.nextStepIndex === 'number') {
-          this.nextStepIndex = this.taskData.nextStepIndex;
-        } else {
-          this.nextStepIndex = 0;
-        }
+        this.setNextStepIndex();
         this.onError?.(error, i);
         throw error;
       }
       this.onProgressOrSkip?.(i, this.stepArr.length - 1, false);
+      this.setNextStepIndex();
     }
     this.nextStepIndex = this.stepArr.length;
     this.result = ctx.tmpTaskReslut as Result;
     if (this.result === undefined) {
+      this.nextStepIndex = 0;
       this.onError?.(
         new Error('步骤执行完成，但是result为空'),
         this.stepArr.length,

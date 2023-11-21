@@ -3,6 +3,8 @@ import { LoginCasTask } from './loginCas';
 
 export type TTask = LabCourseTask | LoginCasTask;
 
-export interface ITaskContext {
-  nextStepIndex?: number;
-}
+export type TgetAccount = () => {
+  account: string;
+  passwd: string;
+  loginedCasCookie?: string;
+};

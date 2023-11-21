@@ -1,5 +1,6 @@
 import { IRunableTask } from '../classes';
 import {
+  CheckTGCStep,
   GetCaptchaStep,
   GetKeyPairStep,
   GetUserAccountStep,
@@ -15,8 +16,9 @@ export class LoginCasTask extends IRunableTask<ITaskResult> {
   constructor() {
     super();
     this.stepArr.push(
-      new GetCaptchaStep(),
       new GetUserAccountStep(),
+      new CheckTGCStep(),
+      new GetCaptchaStep(),
       new GetKeyPairStep(),
       new LoginCasStep(),
     );

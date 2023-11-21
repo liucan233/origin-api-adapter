@@ -9,6 +9,8 @@ interface ITaskData {
   encryptedPasswd?: string;
   passwd?: string;
   account?: string;
+  nextStepIndex?: number;
+  loginedCasCookie?: string;
 }
 
 export class GetCaptchaStep extends TaskStep {
@@ -54,7 +56,10 @@ export class GetCaptchaStep extends TaskStep {
 
 export class LoginCasStep extends TaskStep {
   constructor() {
-    super('尝试登陆', '尝试http://cas.swust.edu.cn/authserver/login');
+    super(
+      '尝试登陆一站式服务大厅',
+      '尝试http://cas.swust.edu.cn/authserver/login',
+    );
   }
 
   async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
@@ -100,7 +105,7 @@ export class LoginCasStep extends TaskStep {
 
 export class GetUserAccountStep extends TaskStep {
   constructor() {
-    super('获取账号密码', '获取需要登陆的账号，原始密码金本地使用');
+    super('获取账号密码', '获取需要登陆的账号，原始密码仅本地使用');
   }
 
   async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
@@ -116,6 +121,7 @@ export class GetUserAccountStep extends TaskStep {
     }
     data.passwd = userAuth.passwd;
     data.account = userAuth.account;
+    data.loginedCasCookie = userAuth.loginedCasCookie;
   }
 }
 
@@ -145,5 +151,32 @@ export class GetKeyPairStep extends TaskStep {
       rsaPublickKey,
       Array.from(passwd).reverse().join(''),
     );
+  }
+}
+
+export class CheckTGCStep extends TaskStep {
+  constructor() {
+    super('尝试使用缓存登录', '尝试使用缓存数据登录一站式服务大厅');
+  }
+
+  async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
+    if (!data.loginedCasCookie) {
+      return;
+    }
+    const res = await fetch('/api/cas/login', {
+      headers: {
+        [modifiedCK]: data.loginedCasCookie,
+      },
+    });
+    const resText = await res.text();
+    if (res.status === 200 && resText.includes('ticket=')) {
+      ctx.tmpTaskReslut = {
+        soaTicketUrl: resText,
+        casLoginedCookie: data.loginedCasCookie,
+      };
+      ctx.authInfo.soaTicket = resText;
+      ctx.authInfo.casTGC = data.loginedCasCookie;
+      data.nextStepIndex = 100;
+    }
   }
 }
