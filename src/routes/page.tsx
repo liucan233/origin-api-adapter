@@ -20,8 +20,10 @@ const TaskCtrl = () => {
       manual: {
         getAccount() {
           return {
-            account: '1',
-            passwd: '1',
+            account: '5120214481',
+            passwd: 'Tzz200306040703',
+            loginedCasCookie:
+              'TGC=TGT-17213-QOKKBY2E7BLpg51hHJpyrsr2j7IlRoV-JFqdiQETtdyCGDf-vNOXHvqd-57xKlO5pVs-cas_32;Version=1;Comment=CAS Cookie;',
           };
         },
         getCaptchaText(base64) {
@@ -42,8 +44,8 @@ const TaskCtrl = () => {
     };
 
     // 监听任务执行情况
-    task1.onProgressOrSkip = (c, a) =>
-      console.log(task1.stepArr[c].name, `${c}/${a}`);
+    task1.onProgressOrSkip = (c, a, s) =>
+      console.log(task1.stepArr[c].name, `${c}/${a}`, s ? '跳过' : '');
 
     const task2 = adapterCore.addTask(supportedTask.getLabCourseTask());
     task2.onSuccess = () => console.log('task2成功');

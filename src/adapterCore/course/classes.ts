@@ -1,5 +1,5 @@
 import { IRunableTask } from '../classes';
-import { LoginSoaStep } from '../common/loginSoa';
+import { LoginSoaStep } from '../common/loginSoaStep';
 import { CheckEnvStep } from './steps';
 import { TCourseItem } from './types';
 

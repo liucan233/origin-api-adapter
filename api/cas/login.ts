@@ -4,10 +4,17 @@ import { useContext } from '@modern-js/runtime/express';
 // import { incomingToFetchHeaders, resetCookieKey } from '@api/_utils';
 
 const modifiedCK = 'x-modified-cookie';
+const useHttps = 'x-use-https';
+
+const httpUrl =
+  'http://cas.swust.edu.cn/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F';
+const httpsUrl =
+  'https://cas.swust.edu.cn/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F';
 
 export const post = async () => {
   const ctx = useContext();
   const rawCookie = ctx.req.headers[modifiedCK];
+  const ssl = ctx.req.headers[useHttps];
   if (!rawCookie || rawCookie.length < 1) {
     ctx.res.status(400);
     return '未携带cookie';
@@ -24,18 +31,15 @@ export const post = async () => {
   });
   const cookie =
     typeof rawCookie === 'string' ? rawCookie : rawCookie.join(';');
-  const res = await fetch(
-    'https://cas.swust.edu.cn/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F',
-    {
-      redirect: 'manual',
-      method: 'post',
-      body: bodyText,
-      headers: {
-        cookie,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+  const res = await fetch(ssl ? httpsUrl : httpUrl, {
+    redirect: 'manual',
+    method: 'post',
+    body: bodyText,
+    headers: {
+      cookie,
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-  );
+  });
   const resText = await res.text();
   if (resText.includes('textError')) {
     ctx.res.status(401);
@@ -57,8 +61,6 @@ export const post = async () => {
         }
       }
     }
-    const r = await fetch(redirectTarget);
-    console.log(r.status, r.headers.get('set-cookie'));
     ctx.res.setHeader(modifiedCK, resCookie);
     return redirectTarget;
   }
@@ -75,15 +77,13 @@ export const get = async () => {
   }
   const cookie =
     typeof rawCookie === 'string' ? rawCookie : rawCookie.join(';');
-  const res = await fetch(
-    'https://cas.swust.edu.cn/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F',
-    {
-      redirect: 'manual',
-      headers: {
-        cookie,
-      },
+  const ssl = ctx.req.headers[useHttps];
+  const res = await fetch(ssl ? httpsUrl : httpUrl, {
+    redirect: 'manual',
+    headers: {
+      cookie,
     },
-  );
+  });
   const redirectTarget = res.headers.get('location');
   if (redirectTarget?.includes('ticket')) {
     return redirectTarget;

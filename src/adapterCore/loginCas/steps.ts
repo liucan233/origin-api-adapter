@@ -1,5 +1,6 @@
 /* eslint-disable max-classes-per-file */
 import { AdapterCoreContext, TaskStep } from '../classes';
+import { useHttps } from '../constant';
 import { rsaUtils } from './security';
 
 const modifiedCK = 'x-modified-cookie';
@@ -11,6 +12,7 @@ interface ITaskData {
   account?: string;
   nextStepIndex?: number;
   loginedCasCookie?: string;
+  useHttpsCas?: boolean;
 }
 
 export class GetCaptchaStep extends TaskStep {
@@ -26,6 +28,9 @@ export class GetCaptchaStep extends TaskStep {
       '/swust/cas/authserver/login?service=http%3A%2F%2Fsoa.swust.edu.cn%2F',
       {
         redirect: 'error',
+        headers: {
+          [useHttps]: data.useHttpsCas ? '1' : '',
+        },
       },
     );
     const siteSession = res.headers.get(modifiedCK);
@@ -36,10 +41,11 @@ export class GetCaptchaStep extends TaskStep {
     res = await fetch('/swust/cas/authserver/captcha', {
       headers: {
         [modifiedCK]: siteSession,
+        [useHttps]: data.useHttpsCas ? '1' : '',
       },
     });
     if (res.headers.has(modifiedCK)) {
-      throw new Error('验证码被重写设置cookie');
+      throw new Error('验证码被重新设置cookie');
     }
     const imgBlob = await res.blob();
     const readImg = new Promise<string>(resolve => {
@@ -83,6 +89,7 @@ export class LoginCasStep extends TaskStep {
         'Upgrade-Insecure-Requests': '1',
         [modifiedCK]: data.casSession as string,
         'Content-Type': 'plain/text',
+        [useHttps]: data.useHttpsCas ? '1' : '',
       },
       body: params.toString(),
     });
@@ -109,6 +116,9 @@ export class GetUserAccountStep extends TaskStep {
   }
 
   async startWork(ctx: AdapterCoreContext, data: ITaskData): Promise<void> {
+    if (ctx.tmpTaskReslut) {
+      data.useHttpsCas = true;
+    }
     if (!ctx.manual.getAccount) {
       throw new Error('未传入manual.getAccount');
     }
@@ -134,6 +144,7 @@ export class GetKeyPairStep extends TaskStep {
     const res = await fetch('/swust/cas/authserver/getKey', {
       headers: {
         [modifiedCK]: data.casSession as string,
+        [useHttps]: data.useHttpsCas ? '1' : '',
       },
     });
     const siteSession = res.headers.get(modifiedCK);
@@ -166,6 +177,7 @@ export class CheckTGCStep extends TaskStep {
     const res = await fetch('/api/cas/login', {
       headers: {
         [modifiedCK]: data.loginedCasCookie,
+        [useHttps]: data.useHttpsCas ? '1' : '',
       },
     });
     const resText = await res.text();

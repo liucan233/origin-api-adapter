@@ -4,6 +4,7 @@ import { expressPlugin } from '@modern-js/plugin-express';
 import cookie from 'cookie';
 
 const modifiedCK = 'x-modified-cookie';
+const useHttps = 'x-use-https';
 
 // https://modernjs.dev/en/configure/app/usage
 export default defineConfig({
@@ -19,7 +20,14 @@ export default defineConfig({
         },
         proxyTimeout: 2000,
         timeout: 3000,
-        target: 'https://cas.swust.edu.cn',
+        router(req) {
+          console.log('request:', req.url);
+          req.headers.cookie = '';
+          if (req.headers[useHttps]) {
+            return 'https://cas.swust.edu.cn';
+          }
+          return 'http://cas.swust.edu.cn';
+        },
         onProxyRes(incoming) {
           const setCookie = incoming.headers['set-cookie'];
           incoming.headers['cache-control'] = 'no-store';
@@ -39,9 +47,19 @@ export default defineConfig({
         },
         onProxyReq(proxyReq, incoming) {
           const ck = incoming.headers[modifiedCK];
+          const ssl = incoming.headers[useHttps];
           if (ck) {
             proxyReq.setHeader('Cookie', ck);
           }
+          if (ssl) {
+            proxyReq.protocol = 'https:';
+          }
+        },
+        onError(err, req, res) {
+          res.statusCode = 502;
+          res.setHeader('content-type', 'plain/text');
+          res.write('学校服务器无响应', 'utf-8');
+          res.end();
         },
       },
       '/swust/soa': {

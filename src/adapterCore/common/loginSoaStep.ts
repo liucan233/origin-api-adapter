@@ -11,7 +11,7 @@ export class LoginSoaStep extends TaskStep {
     if (!ctx.authInfo.soaTicket) {
       throw new Error('未传入soa ticket');
     }
-    const regResult = ctx.authInfo.soaTicket.match(/ticket=.+$/);
+    const regResult = ctx.authInfo.soaTicket.match(/ticket=.+"/);
     if (!regResult?.length) {
       throw new Error('解析ticket失败');
     }
@@ -20,7 +20,6 @@ export class LoginSoaStep extends TaskStep {
     if (res.status !== 200 || !soaCookie) {
       throw new Error('soa系统不稳定，请稍后再试');
     }
-    console.log(soaCookie);
     ctx.tmpTaskReslut = soaCookie;
   }
 }
